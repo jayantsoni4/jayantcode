@@ -1,86 +1,113 @@
-// server.js
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
+require('dotenv').config(); // ✅ Load env vars
 
-// Environment variables (for MongoDB URI)
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
 
+// Initialize Express app
 const app = express();
+
+// Middleware
+app.use(express.json()); // Replaces body-parser
 app.use(cors());
-app.use(express.json());
-
-// Mongoose Schema & Model
-const inventorySchema = new mongoose.Schema({
-  date: String,
-  partCode: String,
-  product: String,
-  model: String,
-  capacity: String,
-  currentStock: Number,
-  stockIn: Number,
-  stockOut: Number,
-  total: Number,
-});
-
-const Inventory = mongoose.model("Inventory", inventorySchema);
 
 // Connect to MongoDB
-mongoose.connect(MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => console.log("✅ MongoDB Connected"))
-  .catch(err => console.error("❌ MongoDB Error:", err));
+const dbURI = process.env.MONGODB_URI;
+mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('✅ Connected to MongoDB Atlas'))
+  .catch((err) => {
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
+  });
 
-// === API Routes ===
+// Schema
+const taskSchema = new mongoose.Schema({
+  complaintNumber: String,
+  name: String,
+  email: String,
+  phone: String,
+  altPhone: String,
+  state: String,
+  city: String,
+  pincode: String,
+  location: String,
+  landmark: String,
+  product: String,
+  selectedModel: {
+    model: String,
+    capacity: String,
+    warranty: Number
+  },
+  serialNumber: String,
+  warrantyStatus: {
+    status: String,
+    expiryDate: String
+  },
+  purchaseDate: String,
+  installationDate: String,
+  callType: String,
+  condition: String,
+  callSource: String,
+  taskStatus: String,
+  assignEngineer: String,
+  contactNo: String,
+  dealer: String,
+  date: String,
+  asp: String,
+  aspName: String,
+  actionTaken: String,
+  customerFeedback: String,
+  enginnerNotes: String,
+  images: [String],
+  status: String,
+  complaintNotes: String,
+  additionalStatus: String,
+}, { timestamps: true });
 
-// Get all inventory items
-app.get("/api/inventory", async (req, res) => {
+const Task = mongoose.model('Task', taskSchema);
+
+// Routes
+app.post('/tasks', async (req, res) => {
   try {
-    const items = await Inventory.find();
-    res.json(items);
+    const task = new Task(req.body);
+    await task.save();
+    res.status(201).json(task);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to save task.' });
   }
 });
 
-// Create a new inventory item
-app.post("/api/inventory", async (req, res) => {
+app.get('/tasks', async (req, res) => {
   try {
-    const newItem = new Inventory(req.body);
-    await newItem.save();
-    res.status(201).json(newItem);
+    const tasks = await Task.find();
+    res.status(200).json(tasks);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to fetch tasks.' });
   }
 });
 
-// Update an item by ID
-app.put("/api/inventory/:id", async (req, res) => {
+app.put('/tasks/:id', async (req, res) => {
   try {
-    const updatedItem = await Inventory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updatedItem);
+    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    res.status(200).json(task);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to update task.' });
   }
 });
 
-// Delete an item by ID
-app.delete("/api/inventory/:id", async (req, res) => {
+app.delete('/tasks/:id', async (req, res) => {
   try {
-    await Inventory.findByIdAndDelete(req.params.id);
-    res.json({ message: "Item deleted" });
+    const task = await Task.findByIdAndDelete(req.params.id);
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+    res.status(200).json({ message: 'Task deleted' });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: 'Failed to delete task.' });
   }
 });
 
-// // Start the server
-// app.listen(PORT, () => {
-//   console.log(`🚀 Server running at http://localhost:${PORT}`);
-// });
-
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Server running at http://0.0.0.0:${PORT}`);
+// Start server
+const port = process.env.PORT || 5000;
+app.listen(port, () => {
+  console.log(`🚀 Server running on port ${port}`);
 });
