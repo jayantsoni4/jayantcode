@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const compression = require('compression');
 const express = require('express');
@@ -155,4 +155,5 @@ const port = process.env.PORT || 5002;
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
+
 
