@@ -1,13 +1,13 @@
-const bodyParser = require('body-parser');
+const express = require('express');
 const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
 const cors = require('cors');
 const compression = require('compression');
-const express = require('express');
 const NodeCache = require('node-cache');
 
 // Initialize Express app
 const app = express();
-const cache = new NodeCache({ stdTTL: 60 }); // Cache for 60 seconds
+const cache = new NodeCache({ stdTTL: 36000 }); // Cache for 60 seconds
 
 // Middleware
 app.use(bodyParser.json());
@@ -91,26 +91,28 @@ app.post('/tasks', async (req, res) => {
 
 
 // ✅ Get all tasks (with caching + lean for speed)
+// Get all tasks with pagination
 app.get('/tasks', async (req, res) => {
   try {
-    // Check cache first
-    const cachedTasks = cache.get('allTasks');
-    if (cachedTasks) {
-      console.log('⚡ Serving from cache');
-      return res.status(200).json(cachedTasks);
-    }
+    const page = parseInt(req.query.page) || 1; // current page
+    const limit = parseInt(req.query.limit) || 20; // items per page
+    const skip = (page - 1) * limit;
 
-    // Fetch from DB
-    const tasks = await Task.find().lean(); // .lean() makes it faster
-    cache.set('allTasks', tasks);
+    const totalTasks = await Task.countDocuments();
+    const tasks = await Task.find().skip(skip).limit(limit).lean();
 
-    console.log('🧠 Fetched from DB');
-    res.status(200).json(tasks);
+    res.status(200).json({
+      tasks,
+      totalTasks,
+      currentPage: page,
+      totalPages: Math.ceil(totalTasks / limit),
+    });
   } catch (err) {
-    console.error('Error fetching tasks:', err);
-    res.status(500).json({ error: 'Failed to fetch tasks.' });
+    console.error("Error fetching tasks:", err);
+    res.status(500).json({ error: "Failed to fetch tasks. Please try again." });
   }
 });
+
 
 
 
@@ -155,5 +157,3 @@ const port = process.env.PORT || 5002;
 app.listen(port, () => {
   console.log(`🚀 Server running on port ${port}`);
 });
-
-
